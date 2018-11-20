@@ -1,22 +1,20 @@
 from dqn import Policy
 import gym
+import argparse
 
-def main():
+from runner import Runner
 
-    env = gym.make('CartPole-v1')
-    observation = env.reset()
-    done = False
 
-    policy = Policy(env.action_space)
+def main(episodes=5, env_name='CartPole-v1'):
+    env = gym.make(env_name)
+    policy = Policy(env.observation_space, env.action_space)
+
+
 
     # import pdb; pdb.set_trace()
-    while not done:
-        # env.render()
-        action = policy.compute_actions(observation)
-        observation, reward, done, info = env.step(action)
-        print(observation)
+    runner = Runner(env, policy)
 
-    env.close()
+    runner.run()
 
 main()
 
