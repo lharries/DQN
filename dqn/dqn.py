@@ -11,7 +11,9 @@ class EpsilonGreedyPolicy:
     Epsilon 0 => always follows policy, 1 => allows follows random action
     """
 
-    def __init__(self, observation_space, action_space, epsilon=0.0):
+    def __init__(self, observation_space, action_space, epsilon=0.1):
+        # TODO: Set epsilon default to 1.0
+        # TODO: Add annealing
         self.observation_space = observation_space
         self.action_space = action_space
         self.q_function = QFunction(observation_space, action_space)
@@ -31,6 +33,10 @@ class EpsilonGreedyPolicy:
         else:
             # use policy
             return self.q_function.compute_action(observation)
+
+    def eval(self):
+        self.q_function.model.eval()
+        self.set_epsilon(0.05)
 
 
 class QFunction:
@@ -74,6 +80,8 @@ class Model(nn.Module):
         x = self.ReLU(x)
         return x
 
-
-def learn():
-    pass
+# class Loss:
+#     def __init__(self):
+#         pass
+#
+#     def forward

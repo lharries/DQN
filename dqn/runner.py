@@ -5,12 +5,12 @@ from replay_buffer import ReplayBuffer
 
 
 class Runner:
-    def __init__(self, env, policy, epochs=5, nsteps=10, mini_batch_size=5):
+    def __init__(self, env, policy, epochs=5, nsteps=50, mini_batch_size=32, replay_buffer_size=100):
         self.env = env
         self.policy = policy
         self.epochs = epochs
         self.nsteps = nsteps
-        self.replay_buffer = ReplayBuffer(env.observation_space.shape, 20)
+        self.replay_buffer = ReplayBuffer(env.observation_space.shape, replay_buffer_size)
         self.mini_batch_size = mini_batch_size
 
     def sample_experiences(self):
