@@ -4,11 +4,14 @@ import torch
 import torch.nn as nn
 
 
-class Policy:
+class EpsilonGreedyPolicy:
+    """
+    Epsilon greedy policy
+    """
     def __init__(self, observation_space, action_space, epsilon=1.0):
         self.observation_space = observation_space
         self.action_space = action_space
-        self.model = Model(self.observation_space.shape[0], self.action_space.n)
+        self.model = Model(self.observation_space[0], self.action_space)
         self.epsilon = epsilon
 
     def train(self, state):
@@ -21,7 +24,7 @@ class Policy:
     def compute_actions(self, observation):
         if random.random() < self.epsilon:
             # random action
-            return random.randint(0, self.action_space)
+            return random.randint(0, self.action_space - 1)
         else:
             # use policy
             return torch.argmax(self.model(observation)).item()

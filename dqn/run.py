@@ -1,4 +1,4 @@
-from dqn import Policy
+from dqn import EpsilonGreedyPolicy
 import gym
 import argparse
 
@@ -7,7 +7,7 @@ from runner import Runner
 
 def main(episodes=5, env_name='CartPole-v1'):
     env = gym.make(env_name)
-    policy = Policy(env.observation_space, env.action_space)
+    policy = EpsilonGreedyPolicy(env.observation_space.shape, env.action_space.n)
 
     # import pdb; pdb.set_trace()
     runner = Runner(env, policy)
