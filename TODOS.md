@@ -1,0 +1,3 @@
+- [-] Get random policy working on cartpole
+- [-] Create Replay Buffer
+- [] Create the CNN

@@ -9,14 +9,13 @@ def main(episodes=5, env_name='CartPole-v1'):
     env = gym.make(env_name)
     policy = Policy(env.observation_space, env.action_space)
 
-
-
     # import pdb; pdb.set_trace()
     runner = Runner(env, policy)
 
     runner.run()
 
     print("---done---")
+
 
 main()
 
