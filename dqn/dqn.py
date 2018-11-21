@@ -79,9 +79,3 @@ class Model(nn.Module):
         x = self.fc1(x)
         x = self.ReLU(x)
         return x
-
-# class Loss:
-#     def __init__(self):
-#         pass
-#
-#     def forward
