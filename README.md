@@ -1,5 +1,3 @@
-TODOS:
+Work in progress
 
-[] Get random policy working on cartpole
-[] Create the CNN
-[] Create Replay Buffer
+Recreating the original [DQN atari paper](https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf)
