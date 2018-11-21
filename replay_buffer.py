@@ -1,17 +1,31 @@
 import random
 from collections import namedtuple
 
-Experience = namedtuple("Experience", ["observations", "rewards", "actions"])
+import numpy as np
 
 
 class ReplayBuffer:
-    def __init__(self, max_size):
-        self.storage = list()
+    def __init__(self, obs_shape, max_size):
+        self.observations = np.zeros((max_size, *obs_shape), dtype=np.float)
+        self.new_observations = np.zeros((max_size, *obs_shape), dtype=np.float)
+        self.rewards = np.zeros((max_size,), dtype=np.float)
+        self.actions = np.zeros((max_size,), dtype=np.int)
 
-    def add(self, observations, rewards, actions):
-        experience = Experience(observations, rewards, actions)
+        self.max_size = max_size
+        self.idx = 0
+        self.size = 0
 
-        self.storage.append(experience)
+    def add(self, observations, new_observations, rewards, actions):
+        self.observations[self.idx] = observations
+        self.new_observations[self.idx] = new_observations
+        self.rewards[self.idx] = rewards
+        self.actions[self.idx] = actions
 
-    def sample(self):
-        random.choice(self.storage)
+        self.idx = (self.idx + 1) % self.max_size
+        self.size = max(self.idx, self.size)
+
+    def sample(self, batch_size):
+        assert batch_size <= self.size, "Error: Batch size is smaller than number of entries in the replay buffer"
+        batch = random.sample(range(self.size), batch_size)
+
+        return self.observations[batch], self.new_observations[batch], self.rewards[batch], self.actions[batch]
