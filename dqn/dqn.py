@@ -7,11 +7,14 @@ import torch.nn as nn
 class EpsilonGreedyPolicy:
     """
     Epsilon greedy policy
+
+    Epsilon 0 => always follows policy, 1 => allows follows random action
     """
-    def __init__(self, observation_space, action_space, epsilon=1.0):
+
+    def __init__(self, observation_space, action_space, epsilon=0.0):
         self.observation_space = observation_space
         self.action_space = action_space
-        self.model = Model(self.observation_space[0], self.action_space)
+        self.q_function = QFunction(observation_space, action_space)
         self.epsilon = epsilon
 
     def train(self, state):
@@ -27,8 +30,23 @@ class EpsilonGreedyPolicy:
             return random.randint(0, self.action_space - 1)
         else:
             # use policy
-            return torch.argmax(self.model(observation)).item()
+            return self.q_function.compute_action(observation)
 
+
+class QFunction:
+    def __init__(self, observation_space, action_space):
+        self.observation_space = observation_space
+        self.action_space = action_space
+        self.model = Model(self.observation_space[0], self.action_space)
+
+    def compute_Q_values(self, observation):
+        return self.model(observation)
+
+    def compute_max_Q_value(self, observation):
+        return max(self.compute_Q_values(observation)).item()
+
+    def compute_action(self, observation):
+        return torch.argmax(self.compute_Q_values(observation)).item()
 
 
 class Model(nn.Module):
