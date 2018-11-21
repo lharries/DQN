@@ -13,7 +13,7 @@ class Policy:
         pass
 
     def compute_actions(self, observation):
-        return self.model(observation)
+        return torch.argmax(self.model(observation)).item()
 
 class Model(nn.Module):
     def __init__(self, observation_space, action_space):
@@ -27,11 +27,11 @@ class Model(nn.Module):
     def transform(self, obs):
         return torch.tensor(obs, dtype=torch.float)
 
-    def forward(self, obs):
-        obs = self.transform(obs)
-        obs = self.fc1(obs)
-        obs = self.ReLU(obs)
-        return torch.argmax(obs).item()
+    def forward(self, x):
+        x = self.transform(x)
+        x = self.fc1(x)
+        x = self.ReLU(x)
+        return x
 
 def learn():
     pass

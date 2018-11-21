@@ -16,6 +16,8 @@ def main(episodes=5, env_name='CartPole-v1'):
 
     runner.run()
 
+    print("---done---")
+
 main()
 
 # import gym
