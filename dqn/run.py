@@ -14,7 +14,7 @@ def main(episodes=5, env_name='CartPole-v1'):
 
     runner.run()
 
-    print("---done---")
+    print("\n---done---")
 
 
 main()
