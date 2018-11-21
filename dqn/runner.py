@@ -5,7 +5,7 @@ from replay_buffer import ReplayBuffer
 
 
 class Runner:
-    def __init__(self, env, policy, epochs=5, nsteps=50, mini_batch_size=32, replay_buffer_size=100):
+    def __init__(self, env, policy, epochs=5, nsteps=200, mini_batch_size=32, replay_buffer_size=100):
         self.env = env
         self.policy = policy
         self.epochs = epochs
@@ -13,12 +13,14 @@ class Runner:
         self.replay_buffer = ReplayBuffer(env.observation_space.shape, replay_buffer_size)
         self.mini_batch_size = mini_batch_size
 
-    def sample_experiences(self):
+    def run(self):
+        print("training...\n")
 
-        episode_rewards = []
+        step = 0
 
-        for _ in range(self.nsteps):
+        while True:
 
+            # run episode
             observation = self.env.reset()
             done = False
 
@@ -30,25 +32,15 @@ class Runner:
 
                 self.replay_buffer.add(observation, new_observation, reward, action)
 
-                observation = new_observation
+                # train
+                if step > 50:
+                    mini_batch = self.replay_buffer.sample(self.mini_batch_size)
+                # TODO: Update models
+
                 episode_reward += reward
+                step += 1
 
-            episode_rewards.append(episode_reward)
+            print(f'Step number {step}, reward: {episode_reward}')
 
-            self.env.close()
-
-        average_episode_reward = sum(episode_rewards)/len(episode_rewards)
-        return average_episode_reward
-
-    def train(self):
-        epochs = 5
-        for _ in range(epochs):
-            self.replay_buffer.sample(self.mini_batch_size)
-
-    def run(self):
-        print("training...\n")
-
-        for epoch in range(self.epochs):
-            average_episode_reward = self.sample_experiences()
-            self.train()
-            print("Epoch " + str(epoch) + ", average reward: " + str(average_episode_reward))
+            if step >= self.nsteps:
+                return
