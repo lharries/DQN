@@ -3,13 +3,17 @@ import numpy as np
 
 from replay_buffer import ReplayBuffer
 
-from dqn import EpsilonGreedyPolicy
+from dqn import EpsilonGreedyPolicy, calc_loss
 
 
 class Runner:
-    def __init__(self, env_name='CartPole-v1', epochs=5, nsteps=2e3, mini_batch_size=32, replay_buffer_size=100):
+    def __init__(self, env_name='CartPole-v1', epochs=5, nsteps=51, mini_batch_size=32, replay_buffer_size=100):
         self.env = gym.make(env_name)
+
         self.policy = EpsilonGreedyPolicy(self.env.observation_space.shape, self.env.action_space.n)
+        self.target_policy = EpsilonGreedyPolicy(self.env.observation_space.shape, self.env.action_space.n)
+        self.update_policies()
+
         self.epochs = epochs
         self.nsteps = nsteps
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape, replay_buffer_size)
@@ -20,6 +24,10 @@ class Runner:
         self.epsilon_final = 0.1
         self.epsilon_anneal_steps = 1e3
         self.epsilon_anneal_rate = (self.epsilon - self.epsilon_final) / self.epsilon_anneal_steps
+
+    def update_policies(self):
+        self.target_policy.get_model().load_state_dict(self.policy.get_model().state_dict())
+
 
     def run(self):
         print("training...\n")
@@ -42,7 +50,9 @@ class Runner:
                 # train
                 if step > 50:
                     mini_batch = self.replay_buffer.sample(self.mini_batch_size)
+                    calc_loss(self.policy, self.target_policy, mini_batch)
                     # TODO: Update models
+
 
                 # anneal the self.epsilon value
                 if self.epsilon > self.epsilon_final:
