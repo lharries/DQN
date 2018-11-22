@@ -66,12 +66,13 @@ class QFunction:
 
 
 class Model(nn.Module):
-    def __init__(self, observation_space, action_space):
+    def __init__(self, observation_space, action_space, hidden_size=3):
         super(Model, self).__init__()
         self.observation_space = observation_space
         self.action_space = action_space
 
-        self.fc1 = nn.Linear(observation_space, action_space)
+        self.fc1 = nn.Linear(observation_space, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, action_space)
         self.ReLU = nn.ReLU()
 
         self.one_hot_actions = torch.eye(action_space)
@@ -87,47 +88,46 @@ class Model(nn.Module):
         obs = self.transform(obs)
         x = self.transform(obs)
         x = self.fc1(x)
+        x = self.fc2(x)
         x = self.ReLU(x)
         return x
 
 
-def calc_loss(policy, target_policy, mini_batch, discount_factor=0.9):
+def calc_loss(target_policy, mini_batch, discount_factor=0.9):
     # TODO: check discount_factor
 
-    observations = mini_batch["observations"]
-    new_observations = mini_batch["new_observations"]
+    observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
+    new_observations = torch.tensor(mini_batch["new_observations"], dtype=torch.float)
     rewards = torch.tensor(mini_batch["rewards"], dtype=torch.float)
-    actions = mini_batch["actions"]
+    actions = torch.tensor(mini_batch["actions"], dtype=torch.long)
     dones = torch.tensor(mini_batch["dones"], dtype=torch.float)
 
+    all_predicted_q_observations = target_policy.get_q_function().compute_Q_values(observations)
 
-    all_predicted_q_observations = policy.get_q_function().compute_Q_values(observations)
+    # print(all_predicted_q_observations)
+    # print(actions)
 
-    print(all_predicted_q_observations)
-    print(actions)
-
-    indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + torch.tensor(mini_batch['actions'], dtype=torch.long)
+    indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + actions
     predicted_q_of_observation = torch.take(all_predicted_q_observations, indices_of_actions)
 
-    print(predicted_q_of_observation)
+    # print(predicted_q_of_observation)
 
+    predicted_q_of_next_obs = target_policy.get_q_function().compute_max_Q_value(new_observations)
+    # print("predicted_q_of_next_obs", predicted_q_of_next_obs)
 
-    predicted_q_of_next_obs = policy.get_q_function().compute_max_Q_value(new_observations)
-    print("predicted_q_of_next_obs", predicted_q_of_next_obs)
-
-    reward_and_discount_pred_next_obs = torch.tensor(rewards, dtype=torch.float) + discount_factor * predicted_q_of_next_obs
+    reward_and_discount_pred_next_obs = rewards + discount_factor * predicted_q_of_next_obs
 
     # handle the dones
     rewards = rewards * dones
-    print(dones)
-    print(rewards)
+    # print(dones)
+    # print(rewards)
 
-    reward_and_discount_pred_next_obs = reward_and_discount_pred_next_obs * (1- dones) + rewards
-    print(reward_and_discount_pred_next_obs)
+    reward_and_discount_pred_next_obs = reward_and_discount_pred_next_obs * (1 - dones) + rewards
+    # print(reward_and_discount_pred_next_obs)
 
-    print(-(torch.log((reward_and_discount_pred_next_obs - predicted_q_of_next_obs) ** 2).mean()))
+    loss = -(torch.log((reward_and_discount_pred_next_obs - predicted_q_of_next_obs) ** 2).mean())
 
     # print(predicted_values)
     # print(np.expand_dims(mini_batch['actions'], 1))
     # print(predicted_values.detach().numpy()[np.expand_dims(mini_batch['actions'], 1)])
-    raise ValueError()
+    return loss
