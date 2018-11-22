@@ -26,19 +26,18 @@ class Runner:
 
         step = 0
 
+        # each loop represents sampling one episode and training
         while True:
 
-            # run episode
             observation = self.env.reset()
-            done = False
-
+            episode_done = False
             episode_reward = 0
 
-            while not done:
+            while not episode_done:
                 action = self.policy.compute_actions(observation)
-                new_observation, reward, done, info = self.env.step(action)
+                new_observation, reward, episode_done, info = self.env.step(action)
 
-                self.replay_buffer.add(observation, new_observation, reward, action)
+                self.replay_buffer.add(observation, new_observation, reward, action, episode_done)
 
                 # train
                 if step > 50:

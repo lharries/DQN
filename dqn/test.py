@@ -9,12 +9,13 @@ def test_replay_buffer_adding():
     replay_buffer = ReplayBuffer((4,), 5)
     observations = np.ones((4,), dtype=np.float)
     new_observations = np.ones((4,), dtype=np.float) * 2
+    dones = [False, False, False, False, True, False, False, False, False, True]
 
     assert observations.sum() == 4
     assert new_observations.sum() == 8
 
     for i in range(10):
-        replay_buffer.add(observations * i, new_observations * i, i, i * 2)
+        replay_buffer.add(observations * i, new_observations * i, i, i * 2, dones[i])
 
     # observations
     for i in range(5):
@@ -33,6 +34,8 @@ def test_replay_buffer_adding():
     # actions
     for i in range(5):
         assert replay_buffer.actions[i] == (i + 5) * 2
+
+    assert replay_buffer.dones.sum() == 1
 
 
 def test_make_one_hot_actions():

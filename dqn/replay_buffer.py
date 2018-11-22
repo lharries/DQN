@@ -10,16 +10,18 @@ class ReplayBuffer:
         self.new_observations = np.zeros((max_size, *obs_shape), dtype=np.float)
         self.rewards = np.zeros((max_size,), dtype=np.float)
         self.actions = np.zeros((max_size,), dtype=np.int)
+        self.dones = np.zeros((max_size,), dtype=np.bool)
 
         self.max_size = max_size
         self.idx = 0
         self.size = 0
 
-    def add(self, observations, new_observations, rewards, actions):
+    def add(self, observations, new_observations, rewards, actions, done):
         self.observations[self.idx] = observations
         self.new_observations[self.idx] = new_observations
         self.rewards[self.idx] = rewards
         self.actions[self.idx] = actions
+        self.dones[self.idx] = done
 
         self.idx = (self.idx + 1) % self.max_size
         self.size = max(self.idx, self.size)
@@ -28,4 +30,8 @@ class ReplayBuffer:
         assert batch_size <= self.size, f'Error: Number of entries in the replay buffer ({self.size}) is smaller than the batch size ({batch_size})'
         batch = random.sample(range(self.size), batch_size)
 
-        return self.observations[batch], self.new_observations[batch], self.rewards[batch], self.actions[batch]
+        return self.observations[batch], \
+               self.new_observations[batch], \
+               self.rewards[batch], \
+               self.actions[batch], \
+               self.dones[batch]
