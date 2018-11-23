@@ -8,13 +8,13 @@ from dqn import EpsilonGreedyPolicy, calc_loss
 
 
 class Runner:
-    def __init__(self, env_name='CartPole-v1', epochs=5, nsteps=5e6, mini_batch_size=32, replay_buffer_size=1000000,
-                 target_update_nsteps=1000000):
+    def __init__(self, env_name='CartPole-v0', nsteps=5e6, mini_batch_size=128, replay_buffer_size=10000,
+                 target_update_nsteps=10):
         self.env = gym.make(env_name)
 
-        self.epsilon = 1.0
-        self.epsilon_final = 0.1
-        self.epsilon_anneal_steps = 1e6
+        self.epsilon = 0.9
+        self.epsilon_final = 0.05
+        self.epsilon_anneal_steps = 1e4
         self.epsilon_anneal_rate = (self.epsilon - self.epsilon_final) / self.epsilon_anneal_steps
 
         self.policy = EpsilonGreedyPolicy(self.env.observation_space.shape, self.env.action_space.n, self.epsilon)
@@ -22,16 +22,15 @@ class Runner:
                                                  self.epsilon)
         self.update_policies()
 
-        self.epochs = epochs
         self.nsteps = nsteps
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape, replay_buffer_size)
         self.mini_batch_size = mini_batch_size
         self.target_update_nsteps = target_update_nsteps
 
         # probability you choose a random action instead of following the policy
-        self.sample_before_anneal = 50000
+        self.sample_before_anneal = 3000
 
-        self.optimizer = torch.optim.RMSprop(self.policy.get_model().parameters(), lr=0.00025, momentum=0.95, )
+        self.optimizer = torch.optim.Adam(self.policy.get_model().parameters(), lr=1e-4)
 
     def update_policies(self):
         self.target_policy.get_model().load_state_dict(self.policy.get_model().state_dict())
@@ -40,10 +39,8 @@ class Runner:
         print("training...\n")
 
         step = 0
-        loss = 100
+        loss = None
         nepisode = 0
-
-        self.optimizer.zero_grad()
 
         # each loop represents sampling one episode and training
         while True:
@@ -58,16 +55,18 @@ class Runner:
 
                 self.replay_buffer.add(observation, new_observation, reward, action, episode_done)
 
+                observation = new_observation
+
                 # train
                 if step > self.sample_before_anneal:
                     mini_batch = self.replay_buffer.sample(self.mini_batch_size)
-                    loss = calc_loss(self.target_policy, mini_batch)
+
+                    self.optimizer.zero_grad()
+
+                    loss = calc_loss(self.policy, self.target_policy, mini_batch)
 
                     loss.backward()
                     self.optimizer.step()
-
-                    if step % self.target_update_nsteps == 0:
-                        self.update_policies()
 
                     # anneal the self.epsilon value
                     if self.epsilon > self.epsilon_final:
@@ -82,6 +81,10 @@ class Runner:
 
             if nepisode % 50 == 0:
                 print(f'Step number {step}, reward: {episode_reward}, loss: {loss}, epsilon: {self.epsilon}')
+
+            if nepisode % 10 == 0:
+                self.update_policies()
+                print("updating the policy")
 
             if step >= self.nsteps:
                 return

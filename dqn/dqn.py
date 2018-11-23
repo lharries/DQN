@@ -62,13 +62,15 @@ class QFunction:
 
 
 class Model(nn.Module):
-    def __init__(self, observation_space, action_space, hidden_size=3):
+    def __init__(self, observation_space, action_space, hidden_size=10):
+        assert hidden_size == 10
         super(Model, self).__init__()
         self.observation_space = observation_space
         self.action_space = action_space
 
         self.fc1 = nn.Linear(observation_space, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, action_space)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, action_space)
         self.ReLU = nn.ReLU()
 
         self.one_hot_actions = torch.eye(action_space)
@@ -83,12 +85,14 @@ class Model(nn.Module):
     def forward(self, obs):
         x = self.transform(obs)
         x = self.fc1(x)
+        x = self.ReLU(x)
         x = self.fc2(x)
         x = self.ReLU(x)
+        x = self.fc3(x)
         return x
 
 
-def calc_loss(target_policy, mini_batch, discount_factor=0.99):
+def calc_loss(current_policy, target_policy, mini_batch, discount_factor=0.99):
     # TODO: check discount_factor
 
     observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
@@ -97,21 +101,39 @@ def calc_loss(target_policy, mini_batch, discount_factor=0.99):
     actions = torch.tensor(mini_batch["actions"], dtype=torch.long)
     dones = torch.tensor(mini_batch["dones"], dtype=torch.float)
 
+    # print(current_policy.get_model())
+
+    # print(mini_batch)
+
     # get the predicted q values of the states given the actions taken
-    all_predicted_q_observations = target_policy.get_q_function().compute_Q_values(observations)
+    # import pdb; pdb.set_trace()
+    # TODO: this is meant to not be target policy
+    all_predicted_q_observations = current_policy.get_q_function().compute_Q_values(observations)
     indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + actions
     predicted_q_of_observation = torch.take(all_predicted_q_observations, indices_of_actions)
 
+    # print("predicted ----")
+    # print(all_predicted_q_observations)
+    # print(predicted_q_of_observation)
+
     # get hte maximum q values of the next states given the best action
     predicted_q_of_next_obs = target_policy.get_q_function().compute_max_Q_value(new_observations)
-    reward_and_discount_pred_next_obs = rewards + discount_factor * predicted_q_of_next_obs
+    # print("start-----")
+    # print(observations)
+    # print(predicted_q_of_next_obs)
+    discount_pred_next_obs = discount_factor * predicted_q_of_next_obs
+    # print(discount_pred_next_obs)
+    # print(rewards)
+    # print(dones)
 
     # if done, use only the reward recieved, if not done, discount the future rewards and add to current rewards.
-    # mask the rewards
-    rewards = rewards * dones
     # mask those which are done and add the rewards
-    reward_and_discount_pred_next_obs = reward_and_discount_pred_next_obs * (1 - dones) + rewards
+    reward_and_discount_pred_next_obs = discount_pred_next_obs * (1 - dones) + rewards
+
+    # print(reward_and_discount_pred_next_obs)
 
     # calculate the loss
-    loss = (((reward_and_discount_pred_next_obs - predicted_q_of_observation) ** 2).mean())
+    loss = ((reward_and_discount_pred_next_obs - predicted_q_of_observation) ** 2)
+    loss = loss.mean()
+    # raise ValueError()
     return loss
