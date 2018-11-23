@@ -12,16 +12,11 @@ class EpsilonGreedyPolicy:
     Epsilon 0 => always follows policy, 1 => allows follows random action
     """
 
-    def __init__(self, observation_space, action_space, epsilon=0.1):
-        # TODO: Set epsilon default to 1.0
-        # TODO: Add annealing
+    def __init__(self, observation_space, action_space, epsilon=1.0):
         self.observation_space = observation_space
         self.action_space = action_space
         self.q_function = QFunction(observation_space, action_space)
         self.epsilon = epsilon
-
-    def train(self, state):
-        raise ValueError("not yet implemented")
 
     def set_epsilon(self, epsilon):
         assert 0.0 <= epsilon <= 1.0
@@ -35,9 +30,9 @@ class EpsilonGreedyPolicy:
             # use policy
             return self.q_function.compute_action(observation)
 
-    def eval(self):
-        self.q_function.get_model().eval()
-        self.set_epsilon(0.05)
+    # def eval(self):
+    #     self.q_function.get_model().eval()
+    #     self.set_epsilon(0.05)
 
     def get_model(self):
         return self.q_function.get_model()
@@ -59,6 +54,7 @@ class QFunction:
         return torch.max(self.compute_Q_values(observation), dim=1)[0]
 
     def compute_action(self, observation):
+        assert len(observation.shape) == 1
         return torch.argmax(self.compute_Q_values(observation)).item()
 
     def get_model(self):
@@ -85,7 +81,6 @@ class Model(nn.Module):
         return self.one_hot_actions[action]
 
     def forward(self, obs):
-        obs = self.transform(obs)
         x = self.transform(obs)
         x = self.fc1(x)
         x = self.fc2(x)
@@ -93,7 +88,7 @@ class Model(nn.Module):
         return x
 
 
-def calc_loss(target_policy, mini_batch, discount_factor=0.9):
+def calc_loss(target_policy, mini_batch, discount_factor=0.99):
     # TODO: check discount_factor
 
     observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
@@ -102,32 +97,21 @@ def calc_loss(target_policy, mini_batch, discount_factor=0.9):
     actions = torch.tensor(mini_batch["actions"], dtype=torch.long)
     dones = torch.tensor(mini_batch["dones"], dtype=torch.float)
 
+    # get the predicted q values of the states given the actions taken
     all_predicted_q_observations = target_policy.get_q_function().compute_Q_values(observations)
-
-    # print(all_predicted_q_observations)
-    # print(actions)
-
     indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + actions
     predicted_q_of_observation = torch.take(all_predicted_q_observations, indices_of_actions)
 
-    # print(predicted_q_of_observation)
-
+    # get hte maximum q values of the next states given the best action
     predicted_q_of_next_obs = target_policy.get_q_function().compute_max_Q_value(new_observations)
-    # print("predicted_q_of_next_obs", predicted_q_of_next_obs)
-
     reward_and_discount_pred_next_obs = rewards + discount_factor * predicted_q_of_next_obs
 
-    # handle the dones
+    # if done, use only the reward recieved, if not done, discount the future rewards and add to current rewards.
+    # mask the rewards
     rewards = rewards * dones
-    # print(dones)
-    # print(rewards)
-
+    # mask those which are done and add the rewards
     reward_and_discount_pred_next_obs = reward_and_discount_pred_next_obs * (1 - dones) + rewards
-    # print(reward_and_discount_pred_next_obs)
 
-    loss = -(torch.log((reward_and_discount_pred_next_obs - predicted_q_of_next_obs) ** 2).mean())
-
-    # print(predicted_values)
-    # print(np.expand_dims(mini_batch['actions'], 1))
-    # print(predicted_values.detach().numpy()[np.expand_dims(mini_batch['actions'], 1)])
+    # calculate the loss
+    loss = (((reward_and_discount_pred_next_obs - predicted_q_of_observation) ** 2).mean())
     return loss
