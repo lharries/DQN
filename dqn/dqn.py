@@ -74,7 +74,6 @@ class Model(nn.Module):
         return torch.tensor(obs, dtype=torch.float)
 
     def make_one_hot(self, action):
-        # TODO: convert this function to a util
         return self.one_hot_actions[action]
 
     def forward(self, obs):
