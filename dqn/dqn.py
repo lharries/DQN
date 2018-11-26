@@ -30,10 +30,6 @@ class EpsilonGreedyPolicy:
             # use policy
             return self.q_function.compute_action(observation)
 
-    # def eval(self):
-    #     self.q_function.get_model().eval()
-    #     self.set_epsilon(0.05)
-
     def get_model(self):
         return self.q_function.get_model()
 
