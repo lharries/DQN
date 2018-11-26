@@ -86,27 +86,36 @@ class Model(nn.Module):
         return x
 
 
-def calc_loss(current_policy, target_policy, mini_batch, discount_factor):
-    observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
-    new_observations = torch.tensor(mini_batch["new_observations"], dtype=torch.float)
-    rewards = torch.tensor(mini_batch["rewards"], dtype=torch.float)
-    actions = torch.tensor(mini_batch["actions"], dtype=torch.long)
-    dones = torch.tensor(mini_batch["dones"], dtype=torch.float)
+class Loss(nn.Module):
+    def __init__(self, current_policy, target_policy, discount_factor):
+        super(Loss, self).__init__()
+        self.smooth_L1_loss = nn.SmoothL1Loss()
+        self.current_policy = current_policy
+        self.target_policy = target_policy
+        self.discount_factor = discount_factor
 
-    # get the predicted q values of the states given the actions taken, using the current policy
-    all_predicted_q_observations = current_policy.get_q_function().compute_Q_values(observations)
-    indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + actions
-    predicted_q_of_observation = torch.take(all_predicted_q_observations, indices_of_actions)
+    def forward(self, mini_batch):
+        observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
+        new_observations = torch.tensor(mini_batch["new_observations"], dtype=torch.float)
+        rewards = torch.tensor(mini_batch["rewards"], dtype=torch.float)
+        actions = torch.tensor(mini_batch["actions"], dtype=torch.long)
+        dones = torch.tensor(mini_batch["dones"], dtype=torch.float)
 
-    # get the maximum q values of the next states given the best action
-    predicted_q_of_next_obs = target_policy.get_q_function().compute_max_Q_value(new_observations)
-    discount_pred_next_obs = discount_factor * predicted_q_of_next_obs
+        # get the predicted q values of the states given the actions taken, using the current policy
+        all_predicted_q_observations = self.current_policy.get_q_function().compute_Q_values(observations)
+        indices_of_actions = torch.arange(len(all_predicted_q_observations), dtype=torch.long) * 2 + actions
+        predicted_q_of_observation = torch.take(all_predicted_q_observations, indices_of_actions)
 
-    # if done, use only the reward recieved, if not done, discount the future rewards and add to current rewards.
-    # mask those which are done and add the rewards
-    reward_and_discount_pred_next_obs = discount_pred_next_obs * (1 - dones) + rewards
+        # get the maximum q values of the next states given the best action
+        predicted_q_of_next_obs = self.target_policy.get_q_function().compute_max_Q_value(new_observations)
+        discount_pred_next_obs = self.discount_factor * predicted_q_of_next_obs
 
-    # calculate the loss
-    loss = ((reward_and_discount_pred_next_obs - predicted_q_of_observation) ** 2)
-    loss = loss.mean()
-    return loss
+        # if done, use only the reward recieved, if not done, discount the future rewards and add to current rewards.
+        # mask those which are done and add the rewards
+        reward_and_discount_pred_next_obs = discount_pred_next_obs * (1 - dones) + rewards
+        reward_and_discount_pred_next_obs = reward_and_discount_pred_next_obs.detach()
+
+        # calculate the loss
+        loss = self.smooth_L1_loss(predicted_q_of_observation, reward_and_discount_pred_next_obs)
+        loss = loss.mean()
+        return loss

@@ -1,16 +1,26 @@
 import gym
 import numpy as np
 import torch
+import argparse
 
 from replay_buffer import ReplayBuffer
-from dqn import EpsilonGreedyPolicy, calc_loss
+from dqn import EpsilonGreedyPolicy, Loss
 
 from tensorboardX import SummaryWriter
 
 
 class Runner:
-    def __init__(self, env_name='CartPole-v1', mini_batch_size=128, replay_buffer_size=1000,
-                 target_update_nsteps=10, max_episodes=1e10, discount_factor=0.99, render=False):
+    def __init__(self, env_name,
+                 lr,
+                 mini_batch_size,
+                 replay_buffer_size,
+                 target_update_nsteps,
+                 max_episodes,
+                 discount_factor,
+                 epsilon_start,
+                 epsilon_final,
+                 epsilon_anneal_steps,
+                 render=False):
 
         self.mini_batch_size = mini_batch_size
         self.replay_buffer_size = replay_buffer_size
@@ -24,9 +34,9 @@ class Runner:
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape, self.replay_buffer_size)
 
         # probability of choosing random actions
-        self.epsilon = 0.9
-        self.epsilon_final = 0.05
-        self.epsilon_anneal_steps = 100
+        self.epsilon = epsilon_start
+        self.epsilon_final = epsilon_final
+        self.epsilon_anneal_steps = epsilon_anneal_steps
         self.epsilon_anneal_rate = (self.epsilon - self.epsilon_final) / self.epsilon_anneal_steps
 
         self.sample_before_anneal = 128
@@ -34,9 +44,10 @@ class Runner:
         self.policy = EpsilonGreedyPolicy(self.env.observation_space.shape, self.env.action_space.n, self.epsilon)
         self.target_policy = EpsilonGreedyPolicy(self.env.observation_space.shape, self.env.action_space.n,
                                                  self.epsilon)
+        self.loss = Loss(self.policy, self.target_policy, self.discount_factor)
         self.update_policies()
 
-        self.optimizer = torch.optim.Adam(self.policy.get_model().parameters(), lr=1e-4)
+        self.optimizer = torch.optim.Adam(self.policy.get_model().parameters(), lr=lr)
 
     def update_policies(self):
         self.target_policy.get_model().load_state_dict(self.policy.get_model().state_dict())
@@ -71,7 +82,7 @@ class Runner:
 
                     self.optimizer.zero_grad()
 
-                    loss = calc_loss(self.policy, self.target_policy, mini_batch, self.discount_factor)
+                    loss = self.loss(mini_batch)
 
                     loss.backward()
                     self.optimizer.step()
@@ -105,6 +116,8 @@ class Runner:
             nepisode += 1
             episode_rewards.append(episode_reward)
 
+            writer.add_scalar('data/episode_reward_average', sum(episode_rewards) / len(episode_rewards), step)
+            
             if nepisode % 10 == 0:
                 print(
                     f'Episode number \t {nepisode} \t'
@@ -126,7 +139,22 @@ class Runner:
 
 
 def main():
-    runner = Runner()
+    parser = argparse.ArgumentParser(description="DQN")
+    parser.add_argument("--env_name", default="CartPole-v1", type=str)
+    parser.add_argument("--lr", default=1e-4, type=float)
+    parser.add_argument("--mini_batch_size", default=128, type=int)
+    parser.add_argument("--replay_buffer_size", default=1000, type=int)
+    parser.add_argument("--target_update_nsteps", default=10, type=int)
+    parser.add_argument("--max_episodes", default=200, type=int)
+    parser.add_argument("--discount_factor", default=0.99, type=float)
+    parser.add_argument("--render", default=False, type=bool)
+    parser.add_argument("--epsilon_start", default=0.9, type=int)
+    parser.add_argument("--epsilon_final", default=0.05, type=int)
+    parser.add_argument("--epsilon_anneal_steps", default=2000, type=int)
+    args = parser.parse_args()
+    print(vars(args))
+    runner = Runner(**vars(args))
     runner.run()
+
 
 main()
