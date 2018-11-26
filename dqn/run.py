@@ -29,6 +29,10 @@ class Runner:
         self.discount_factor = discount_factor
         self.render = render
 
+        self.writer = SummaryWriter(
+            comment=f'_{env_name}_{lr}_{mini_batch_size}_{replay_buffer_size}_{target_update_nsteps}_{max_episodes}_'
+                    + f'{discount_factor}_{epsilon_start}_{epsilon_final}_{epsilon_anneal_steps}')
+
         self.env = gym.make(env_name)
 
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape, self.replay_buffer_size)
@@ -54,12 +58,13 @@ class Runner:
 
     def run(self):
         print("training...\n")
-        writer = SummaryWriter()
 
         step = 0
         loss = None
         nepisode = 0
         episode_rewards = []
+
+
 
         # each loop represents sampling one episode and training
         while True:
@@ -82,9 +87,9 @@ class Runner:
 
                     self.optimizer.zero_grad()
 
-                    loss = self.loss(mini_batch)
+                    loss_value = self.loss(mini_batch)
 
-                    loss.backward()
+                    loss_value.backward()
                     self.optimizer.step()
 
                     # anneal the self.epsilon value
@@ -99,25 +104,18 @@ class Runner:
                 if self.render:
                     self.env.render()
 
-                writer.add_scalar('data/episode_number', nepisode, step)
-                writer.add_scalar('data/step', step, step)
-                writer.add_scalar('data/episode_reward', episode_reward, step)
-                writer.add_scalar('data/epsilon', self.epsilon, step)
+                self.writer.add_scalar('data/episode_number', nepisode, step)
+                self.writer.add_scalar('data/step', step, step)
+                self.writer.add_scalar('data/episode_reward', episode_reward, step)
+                self.writer.add_scalar('data/epsilon', self.epsilon, step)
                 if loss:
-                    writer.add_scalar('data/loss', loss, step)
-
-                writer.add_scalar('data/mini_batch_size', self.mini_batch_size, step)
-                writer.add_scalar('data/replay_buffer_size', self.replay_buffer_size, step)
-                writer.add_scalar('data/target_update_nsteps', self.target_update_nsteps, step)
-                writer.add_scalar('data/max_episodes', self.max_episodes, step)
-                writer.add_scalar('data/sample_before_anneal', self.sample_before_anneal, step)
-                writer.add_scalar('data/buffer_size', self.replay_buffer.size, step)
+                    self.writer.add_scalar('data/loss', loss, step)
 
             nepisode += 1
             episode_rewards.append(episode_reward)
 
-            writer.add_scalar('data/episode_reward_average', sum(episode_rewards) / len(episode_rewards), step)
-            
+            self.writer.add_scalar('data/episode_reward_average', sum(episode_rewards) / len(episode_rewards), step)
+
             if nepisode % 10 == 0:
                 print(
                     f'Episode number \t {nepisode} \t'
@@ -136,6 +134,7 @@ class Runner:
                 if self.render:
                     self.env.close()
                 return
+
 
 
 def main():
