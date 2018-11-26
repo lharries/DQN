@@ -10,12 +10,13 @@ from tensorboardX import SummaryWriter
 
 class Runner:
     def __init__(self, env_name='CartPole-v1', mini_batch_size=128, replay_buffer_size=1000,
-                 target_update_nsteps=10, max_episodes=1e10, render=False):
+                 target_update_nsteps=10, max_episodes=1e10, discount_factor=0.99, render=False):
 
         self.mini_batch_size = mini_batch_size
         self.replay_buffer_size = replay_buffer_size
         self.target_update_nsteps = target_update_nsteps
         self.max_episodes = max_episodes
+        self.discount_factor = discount_factor
         self.render = render
 
         self.env = gym.make(env_name)
@@ -70,7 +71,7 @@ class Runner:
 
                     self.optimizer.zero_grad()
 
-                    loss = calc_loss(self.policy, self.target_policy, mini_batch)
+                    loss = calc_loss(self.policy, self.target_policy, mini_batch, self.discount_factor)
 
                     loss.backward()
                     self.optimizer.step()
@@ -127,6 +128,5 @@ class Runner:
 def main():
     runner = Runner()
     runner.run()
-
 
 main()

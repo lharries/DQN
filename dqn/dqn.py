@@ -12,7 +12,7 @@ class EpsilonGreedyPolicy:
     Epsilon 0 => always follows policy, 1 => allows follows random action
     """
 
-    def __init__(self, observation_space, action_space, epsilon=1.0):
+    def __init__(self, observation_space, action_space, epsilon):
         self.observation_space = observation_space
         self.action_space = action_space
         self.q_function = QFunction(observation_space, action_space)
@@ -86,7 +86,7 @@ class Model(nn.Module):
         return x
 
 
-def calc_loss(current_policy, target_policy, mini_batch, discount_factor=0.99):
+def calc_loss(current_policy, target_policy, mini_batch, discount_factor):
     observations = torch.tensor(mini_batch["observations"], dtype=torch.float)
     new_observations = torch.tensor(mini_batch["new_observations"], dtype=torch.float)
     rewards = torch.tensor(mini_batch["rewards"], dtype=torch.float)

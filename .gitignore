@@ -5,3 +5,4 @@ __pycache__/
 dqn_env/
 dqn_env_linux/
 dqn/runs/
+runs/
